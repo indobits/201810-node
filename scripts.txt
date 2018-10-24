@@ -1,0 +1,254 @@
+user@localhost:~$ git clone git@github.com:indobits/201810-node.git
+user@localhost:~$ ssh -o 'IdentitiesOnly yes' root@104.248.121.187
+root@api:~$ groupadd developers
+root@api:~$ useradd --comment "indobits account" --create-home --home-dir /home/indobits --shell /bin/bash --gid developers indobits
+root@api:~$ usermod -aG sudo indobits
+root@api:~$ passwd indobits
+root@api:~$ exit
+
+user@localhost:~$ ssh -o 'IdentitiesOnly yes' indobits@104.248.121.187
+
+/* vim */
+
+indobits@api:~$ sudo vim /root/.vimrc
+
+	Add:
+
+syntax on
+if has('mouse')
+	set mouse=c
+endif
+
+set cursorline
+set number
+set tabstop=2
+
+indobits@api:~$ sudo cp /root/.vimrc ./
+
+/* kernel */
+
+indobits@api:~$ sudo vim /etc/apt/sources.list
+
+# https://debgen.simplylinux.ch
+
+#------------------------------------------------------------------------------#
+#                   OFFICIAL DEBIAN REPOS                                      #
+#------------------------------------------------------------------------------#
+
+###### Debian Main Repos
+deb http://deb.debian.org/debian/ stable main contrib non-free
+deb-src http://deb.debian.org/debian/ stable main contrib non-free
+
+deb http://deb.debian.org/debian/ stable-updates main contrib non-free
+deb-src http://deb.debian.org/debian/ stable-updates main contrib non-free
+
+deb http://deb.debian.org/debian-security stable/updates main
+deb-src http://deb.debian.org/debian-security stable/updates main
+
+deb http://ftp.debian.org/debian stretch-backports main
+deb-src http://ftp.debian.org/debian stretch-backports main
+
+indobits@api:~$ sudo apt update
+indobits@api:~$ sudo apt install apt-transport-https dirmngr curl wget
+indobits@api:~$ sudo apt upgrade
+indobits@api:~$ sudo reboot
+
+/* nvm */
+
+indobits@api:~$ wget -qO- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
+indobits@api:~$ tail -4 .bashrc
+indobits@api:~$ exec $SHELL
+indobits@api:~$ command -v nvm
+
+/* mongodb */
+
+indobits@api:~$ sudo apt install dirmngr
+indobits@api:~$ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+indobits@api:~$ sudo vim /etc/apt/sources.list.d/mongodb-org-4.0.list
+
+	Add:
+
+deb http://repo.mongodb.org/apt/debian stretch/mongodb-org/4.0 main
+
+indobits@api:~$ sudo apt update
+indobits@api:~$ sudo apt install mongodb-org
+indobits@api:~$ sudo service mongod start
+
+indobits@api:~$ sudo vim /etc/mongod.conf
+
+	Add:
+
+security:
+  authorization: enabled
+
+indobits@api:~$ mongo
+
+> use test
+> db.createUser({user:"indobits",pwd:"indobits",roles:["dbAdmin","readWrite"]})
+> db.auth("indobits","indobits")
+
+indobits@api:~$ sudo service mongod restart
+
+/* config */
+
+indobits@api:~$ nvm install 6
+indobits@api:~$ nvm install 8
+indobits@api:~$ nvm install 10
+indobits@api:~$ nvm ls
+indobits@api:~$ nvm alias default 8
+indobits@api:~$ exec $SHELL
+indobits@api:~$ node -v
+indobits@api:~$ npm i npm
+indobits@api:~$ which npm
+indobits@api:~$ mkdir test
+indobits@api:~$ cd test
+indobits@api:~/test$ vim .env
+
+	Add:
+
+MONGO_USER="indobits"
+MONGO_PASS="indobits"
+MONGO_HOST="localhost"
+MONGO_PORT=27017
+MONGO_DB="test"
+
+indobits@api:~/test$ npm init
+indobits@api:~/test$ npm install bcryptjs body-parser dotenv express mongoose nodemon
+indobits@api:~/test$ vim index.js
+
+	Add:
+
+/* app */
+
+const express = require('express');
+const bodyParser = require('body-parser');
+
+const app = express();
+app.use(bodyParser.json({type:'application/json'}));
+app.use((req,res,next) => {
+	res.setHeader('Access-Control-Allow-Origin','*');
+	res.setHeader('Access-Control-Allow-Headers','Content-Type');
+	res.setHeader('Access-Control-Allow-Methods','GET,POST');
+	next();
+});
+
+/* server */
+
+const http = require('http');
+const server = http.createServer(app);
+
+server.listen(8080,(err) => {
+	if(err) console.log(err);
+	console.log('API listening on port 8080');
+});
+
+/* database */
+
+require('dotenv').config({path:'./.env'});
+const env = process.env;
+const mongoose = require('mongoose');
+const bluebird = require('bluebird');
+mongoose.Promise = bluebird;
+
+const uri = `mongodb://${env.MONGO_USER}:${encodeURIComponent(env.MONGO_PASS)}@${env.MONGO_HOST}:${env.MONGO_PORT}/${env.MONGO_DB}`;
+console.log(uri);
+options={useNewUrlParser:true};
+mongoose.connect(uri,options,err => {
+	if(err) console.error(err);
+	console.log('Mongoose connection successfully');
+});
+mongoose.set('debug',true);
+
+/* models */
+
+const user = new mongoose.Schema({
+	id: {type: Number, required: true, min: 1},
+	name: {type: String, required: true, minlength: 2, maxlength: 500, uppercase: true, trim: true},
+	lastName: {type: String, required: true, minlength: 2, maxlength: 500, uppercase: true, trim: true},
+	password: {type: String, required: true, minlength: 60, maxlength: 60, trim: true},
+	createdAt: {type: Date, required: true, default: Date.now},
+	updatedAt: {type: Date, required: true, default: Date.now},
+},{
+	collection: 'users',
+	versionKey: false
+});
+
+const User = mongoose.model('user',user);
+
+/* controllers */
+
+const bcrypt = require('bcryptjs');
+
+const store = async (req,res) => {
+	try {
+		/* id */
+		let id = await User.findOne({},{_id:0,id:1},{sort:{id:-1}});
+		id = (id && ++id.id) || 1;
+
+		/* password */
+		const salt = await bcrypt.genSalt(10);
+		const password = await bcrypt.hash(req.body.password,salt);
+
+		/* user */
+		const user = await new User({
+			id,
+			name: req.body.name,
+			lastName: req.body.lastName,
+			password
+		}).save();
+
+		console.log('Registered User');
+		res.status(201).send({user});
+	} catch(err) {
+		console.error(err);
+		res.status(500).send(err);
+	}
+};
+
+/* routes */
+
+const router = express.Router();
+
+router.get('/',(req,res) => res.send('Home page'));
+router.get('/about',(req,res) => res.send('Somos una compañía seria...'));
+router.get('/me/:name',(req,res) => {
+	const name = req.params.name;
+	res.send(`Hi, ${name}`);
+});
+router.post('/user/register',store);
+
+app.use(router);
+
+indobits@api:~$ node index.js
+indobits@api:~$ node index.js &
+indobits@api:~$ ps aux | grep node
+indobits@api:~$ kill -9 PID
+
+indobits@api:~$ nvm exec 10.12.0 node index.js
+
+indobits@api:~$ vim package.json
+
+	Add:
+
+{
+	...
+	"scripts": {
+		"start": "nodemon index.js"
+	},
+	...
+}
+
+/* Test */
+
+user@localhost:~$ ping 104.248.121.187
+user@localhost:~$ telnet 104.248.121.187 8080
+user@localhost:~$ curl 104.248.121.187:8080
+user@localhost:~$ curl 104.248.121.187:8080/about
+user@localhost:~$ curl 104.248.121.187:8080/me/luis
+user@localhost:~$ curl -d '{"name":"luis","lastName":"indobits","password":"123"}' -H "Content-Type:application/json" -X POST 104.248.121.187:8080/user/register
+
+indobits@api:~$ mongo
+
+> use test
+> db.auth("indobits","indobits")
+> db.users.find().pretty()
