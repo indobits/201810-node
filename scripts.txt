@@ -287,11 +287,19 @@ user@localhost:~$ curl -X GET \
 -H 'Content-Type:application/json' \
 -H "Authorization:Bearer $token"
 
-
-
 /* EsSalud */
 
 user@localhost:~$ curl --request POST \
 https://ww1.essalud.gob.pe/sisep/postulante/postulante/postulante_obtenerDatosPostulante.htm \
---header 'Content-Type:application/x-www-form-urlencoded;Chartset=UTF-8' \
+--header 'Content-Type:application/x-www-form-urlencoded;chartset=UTF-8' \
 --data 'strDni=44639644'
+
+user@localhost:~$ curl --request POST \
+https://ww1.essalud.gob.pe/sisep/postulante/postulante/postulante_obtenerDatosPostulante.htm \
+--header 'Content-Type:application/x-www-form-urlencoded;chartset=UTF-8' \
+--data 'strDni=10001088'
+
+user@localhost:~$ curl --request POST \
+https://ww1.essalud.gob.pe/sisep/postulante/postulante/postulante_obtenerDatosPostulante.htm \
+--header 'Content-Type:application/x-www-form-urlencoded;chartset=UTF-8' \
+--data 'strDni=44929111'
