@@ -252,3 +252,46 @@ indobits@api:~$ mongo
 > use test
 > db.auth("indobits","indobits")
 > db.users.find().pretty()
+
+/* GitHub */
+
+https://developer.github.com/v3
+
+user@localhost:~$ curl -u indobits https://api.github.com
+user@localhost:~$ curl -X GET https://api.github.com/users/indobits
+user@localhost:~$ curl -X GET https://api.github.com/users/indobits -i
+
+	X-RateLimit-Limit: 60
+	X-RateLimit-Remaining: 59
+	X-RateLimit-Reset: 1540593134
+
+user@localhost:~$ node
+
+	> new Date(1540593134*1000)
+		2018-10-26T22:32:14.000Z
+
+user@localhost:~$ curl -X GET https://api.github.com/users/indobits?callback=foo
+
+/* DigitalOcean */
+
+https://developers.digitalocean.com/documentation/v2
+
+user@localhost:~$ export token='e0d41e1c756188fc4bcf3d22af3592512a952116228352f4f9b0d775ec0ac873'
+user@localhost:~$ curl -X GET \
+https://api.digitalocean.com/v2/account \
+-H 'Content-Type:application/json' \
+-H "Authorization:Bearer $token"
+
+user@localhost:~$ curl -X GET \
+"https://api.digitalocean.com/v2/actions?page=1&per_page=1" \
+-H 'Content-Type:application/json' \
+-H "Authorization:Bearer $token"
+
+
+
+/* EsSalud */
+
+user@localhost:~$ curl --request POST \
+https://ww1.essalud.gob.pe/sisep/postulante/postulante/postulante_obtenerDatosPostulante.htm \
+--header 'Content-Type:application/x-www-form-urlencoded;Chartset=UTF-8' \
+--data 'strDni=44639644'
